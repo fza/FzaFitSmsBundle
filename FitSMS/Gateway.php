@@ -22,8 +22,7 @@ class Gateway
     public function setOptions( array $options )
     {
         $this->options = array(
-            'debug'               => false,
-            'debug_test'          => true,
+            'debug_test'          => false,
             'gateway_uri'         => '',
             'max_sms_part_count'  => null,
             'default_intl_prefix' => '',
@@ -124,7 +123,7 @@ class Gateway
             $dataArray['time'] = $time->format('YmdHis');
         }
 
-        if($this->options['debug'] && $this->options['debug_test']) {
+        if($this->options['debug_test']) {
             $dataArray['test'] = '1';
         }
 

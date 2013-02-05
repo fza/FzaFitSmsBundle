@@ -64,10 +64,10 @@ fza_fit_sms:
 
 Notes:
 
-- `tracking` enables transmitting a unique requestid alongside the sms and logging it. You may view this id in the FitSMS control panel.
-- `debug_test` defaults to the kernel enviroment's debug value and sets the `debug` flag while sending an SMS (will transmit it to the gateway, but not actually send it)
+- `tracking` enables transmitting a unique request id alongside the sms and logging it. You may view this id in the FitSMS control panel.
+- `debug_test` defaults to the kernel enviroment's debug value and sets the `debug` flag while sending a sms (will transmit it to the gateway, but not actually send it)
 - `max_sms_part_count` defaults to 6
-- use `numlock` and `ìplock` to enable the limit of number of sms to be sent to a recipient / to be sent from your server IP within an hour. These are just boolean values, the numeric limits are to be configured in the FitSMS control panel.
+- Use `numlock` and `ìplock` to enable the limit of number of sms to be sent to a recipient / to be sent from your server IP within an hour. These are just boolean values, the numeric limits are to be configured in the FitSMS control panel.
 
 ## Usage
 
@@ -78,8 +78,8 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 class MyController extends Controller {
 
     public function smsAction() {
-        // send to multiple recipients with an array of phone numbers
-        // note that you should set phone numbers as strings to preserve leading zeros
+        // Send to multiple recipients with an array of phone numbers
+        // Note that you should set phone numbers as strings to preserve leading zeros
         $recipient = '0049123456789';
         $message = this->renderView('MyBundle::sms.txt.twig');
 
@@ -91,8 +91,12 @@ class MyController extends Controller {
         try {
             // $timeToSend parameter is optional
             $smsSent = $this->get('fitsms.gateway')->sendSMS($sms, $from, $timeToSend);
+
+            if (!$smsSent) {
+                // Handle gateway errors (insufficient credit etc.)
+            }
         } catch(\Exception $e) {
-            // catch exceptions here (mostly due to invalid arguments, wrong username/password, insufficient credit etc.)
+            // Catch exceptions (mostly due to invalid arguments)
         }
     }
 
