@@ -29,18 +29,10 @@ class FzaFitSmsExtension extends Extension
             'password',
             'numlock',
             'iplock',
-            'from',
         );
         foreach($validOptions as $key) {
             $options[$key] = $config[$key];
         }
         $fitSMSGateway->replaceArgument(0, $options);
-
-        $this->addClassesToCompile( array(
-            'fza\\FitSmsBundle\\SMS',
-            'fza\\FitSmsBundle\\FitSMS\\Gateway',
-            'fza\\FitSmsBundle\\FitSMS\\Response',
-            'fza\\FitSmsBundle\\Helper\\NumberHelper',
-        ) );
     }
 }

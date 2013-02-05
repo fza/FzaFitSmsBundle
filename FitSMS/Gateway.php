@@ -32,7 +32,6 @@ class Gateway
             'password'            => null,
             'numlock'             => null,
             'iplock'              => null,
-            'from'                => null,
         );
 
         $invalid = array();
@@ -70,7 +69,7 @@ class Gateway
         return $this->options[$key];
     }
 
-    public function sendSMS(SMS $sms, \DateTime $time = null)
+    public function sendSMS(SMS $sms, $from, \DateTime $time = null)
     {
         $recipients = array();
         $to = $sms->getRecipient();
@@ -104,11 +103,22 @@ class Gateway
             'content'   => urlencode($text)
         );
 
-        foreach(array('iplock', 'numlock', 'from') as $key) {
+        foreach(array('iplock', 'numlock') as $key) {
             if(null !== $this->options[$key]) {
                 $dataArray[$key] = $this->options[$key];
             }
         }
+
+        $from = trim($from);
+        if(is_numeric($from)) {
+            $from = NumberHelper::fixPhoneNumber($from, $this->options['default_intl_prefix']);
+        } elseif(preg_match('/[a-zA-Z]/', $from)) {
+            $from = substr($from, 0, 30);
+        } else {
+            throw new \InvalidArgumentException("'You must specify a valid 'from' value in order to send a SMS.");
+        }
+
+        $dataArray['from'] = $from;
 
         if(null !== $time) {
             $dataArray['time'] = $time->format('YmdHis');
@@ -149,10 +159,10 @@ class Gateway
         $fp = @fopen($this->options['gateway_uri'], 'rb', false, $context);
         if($fp) {
             $response = new Response(@stream_get_contents($fp));
-            @fclose( $fp );
+            @fclose($fp);
         } else {
             if(null !== $this->logger) {
-                $this->logger->warn(sprintf('Failed to connect to the FitSMS gateway server at "\s".', $this->options['gateway_uri']));
+                $this->logger->warn(sprintf('Failed to connect to the FitSMS gateway server at "%s".', $this->options['gateway_uri']));
             }
 
             $isFailure = true;
@@ -161,14 +171,14 @@ class Gateway
         if(null !== $response) {
             if($response->isFailure()) {
                 if(null !== $this->logger) {
-                    $this->logger->err(sprintf('Failed to send SMS\s. (\s)', null !== $messageId ? ', message ID: '.$messageId : '', $response->getMessage()));
+                    $this->logger->err(sprintf('Failed to send SMS\s. %s)', null !== $messageId ? ', message ID: '.$messageId : '', $response->getMessage()));
                 }
 
                 $isFailure = true;
             }
 
             if(null !== $this->logger) {
-                $this->logger->info(sprintf('SMS has been sent successfully\s\s. (\s)', $response->isTest() ? ' in test mode' : '', null !== $messageId ? ', message ID: '.$messageId : '', $response->getMessage()));
+                $this->logger->info(sprintf('SMS has been sent successfully%s%s. (%s)', $response->isTest() ? ' in test mode' : '', null !== $messageId ? ', message ID: '.$messageId : '', $response->getMessage()));
             }
         }
 
@@ -200,13 +210,6 @@ class Gateway
 
             case 'max_sms_part_count':
                 return max(1, min((int) $value, 6));
-
-            case 'from':
-                if(preg_match('/[a-zA-Z]/', $value)) {
-                    return substr($value, 0, 30);
-                }
-
-                return null !== $value ? NumberHelper::fixPhoneNumber($value, $this->options['default_intl_prefix']) : null;
         }
 
         return $value;

@@ -32,6 +32,7 @@ class SMS
             return;
         }
 
+        // FitSMS expects message text to be ISO-8859-1 encoded
         $this->text = mb_convert_encoding($text, 'ISO-8859-1', mb_detect_encoding($text));
     }
 

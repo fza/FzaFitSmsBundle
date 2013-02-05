@@ -1,6 +1,6 @@
 <?php
 
-namespace fza\FitSmsBundle\DependencyInjection;
+namespace Fza\FitSmsBundle\DependencyInjection;
 
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
@@ -21,7 +21,7 @@ class Configuration implements ConfigurationInterface
 
         $rootNode
             ->children()
-                ->booleanNode('debug_test')->defaultValue(true)->end()
+                ->booleanNode('debug_test')->defaultValue($this->debug)->end()
                 ->scalarNode('gateway_uri')->defaultValue('https://gateway.fitsms.de/sms/http2sms.jsp')->end()
                 ->scalarNode('max_sms_part_count')->defaultValue(6)->end()
                 ->scalarNode('default_intl_prefix')->defaultValue(1)->end()
@@ -30,7 +30,6 @@ class Configuration implements ConfigurationInterface
                 ->scalarNode('password')->isRequired()->end()
                 ->booleanNode('numlock')->defaultValue(false)->end()
                 ->booleanNode('iplock')->defaultValue(false)->end()
-                ->scalarNode('from')->defaultValue(null)->end()
             ->end()
         ;
 
