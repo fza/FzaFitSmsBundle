@@ -3,8 +3,8 @@
 namespace Fza\FitSmsBundle\FitSms;
 
 use Fza\FitSmsBundle\Helper\NumberHelper;
-use Fza\FitSmsBundle\SMS;
-use Symfony\Component\HttpKernel\Log\LoggerInterface;
+use Fza\FitSmsBundle\Sms;
+use Psr\Log\LoggerInterface;
 
 class Gateway
 {
@@ -19,10 +19,18 @@ class Gateway
         $this->logger = $logger;
     }
 
-    public function setOptions( array $options )
+    /**
+     * Set the gateway options
+     *
+     * @param array $options
+     *
+     * @throws \InvalidArgumentException
+     */
+    public function setOptions(array $options)
     {
         $this->options = array(
-            'debug_test'          => false,
+            'debug'               => false,
+            'debug_test'          => true,
             'gateway_uri'         => '',
             'max_sms_part_count'  => null,
             'default_intl_prefix' => '',
@@ -31,12 +39,13 @@ class Gateway
             'password'            => null,
             'numlock'             => null,
             'iplock'              => null,
+            'from'                => null,
         );
 
-        $invalid = array();
+        $invalid   = array();
         $isInvalid = false;
-        foreach($options as $key => $value) {
-            if(array_key_exists($key, $this->options)) {
+        foreach ($options as $key => $value) {
+            if (array_key_exists($key, $this->options)) {
                 $this->options[$key] = $this->checkOption($key, $value);
             } else {
                 $isInvalid = true;
@@ -44,182 +53,260 @@ class Gateway
             }
         }
 
-        if($isInvalid)
-        {
-            throw new \InvalidArgumentException(sprintf('The FitSMS gateway does not support the following options: "%s".', implode('\', \'', $invalid)));
+        if ($isInvalid) {
+            throw new \InvalidArgumentException(sprintf(
+                'The FitSMS gateway does not support the following options: "%s".',
+                implode('\', \'', $invalid)
+            ));
         }
     }
 
+    /**
+     * Some options needs special validation/sanitization
+     *
+     * @param $key
+     * @param $value
+     *
+     * @return mixed|null|string
+     */
+    private function checkOption($key, $value)
+    {
+        switch ($key) {
+            case 'numlock':
+            case 'iplock':
+                // Send these as plain integers
+                return !empty($value) ? '1' : '0';
+
+            case 'max_sms_part_count':
+                // There is an enforced maximum of 6 parts per SMS
+                return max(1, min((int) $value, 6));
+
+            case 'from':
+                // Is it alphanumeric?
+                if (preg_match('/[a-zA-Z]/', $value)) {
+                    return substr($value, 0, 30);
+                }
+
+                // Otherwise treat it as a telephone number
+                return null !== $value ? NumberHelper::fixPhoneNumber(
+                    $value,
+                    $this->options['default_intl_prefix']
+                ) : null;
+        }
+
+        return $value;
+    }
+
+    /**
+     * Set one gateway option
+     *
+     * @param $key
+     * @param $value
+     *
+     * @throws \InvalidArgumentException
+     */
     public function setOption($key, $value)
     {
-        if(!array_key_exists($key, $this->options)) {
+        if (!array_key_exists($key, $this->options)) {
             throw new \InvalidArgumentException(sprintf('The FitSMS gateway does not support the "%s" option.', $key));
         }
 
         $this->options[$key] = $this->checkOption($key, $value);
     }
 
+    /**
+     * Get one gateway option
+     *
+     * @param $key
+     *
+     * @return mixed
+     * @throws \InvalidArgumentException
+     */
     public function getOption($key)
     {
-        if(!array_key_exists($key, $this->options)) {
+        if (!array_key_exists($key, $this->options)) {
             throw new \InvalidArgumentException(sprintf('The FitSMS gateway does not support the "%s" option.', $key));
         }
 
         return $this->options[$key];
     }
 
-    public function sendSMS(SMS $sms, $from, \DateTime $time = null)
+    /**
+     * Main sending routine
+     *
+     * @param SMS       $sms
+     * @param null      $from
+     * @param \DateTime $time
+     *
+     * @return bool
+     * @throws \InvalidArgumentException
+     * @throws \LengthException
+     */
+    public function sendSms(Sms $sms, $from = null, \DateTime $time = null)
     {
         $recipients = array();
-        $to = $sms->getRecipient();
+        $to         = $sms->getRecipient();
 
-        if(is_string($to) && false !== strpos($to, ',')) {
+        if (is_string($to) && false !== strpos($to, ',')) {
             $to = explode(',', $to);
-        }
-        else if(!is_array($to)) {
+        } else if (!is_array($to)) {
             $to = array($to);
         }
 
-        foreach($to as $number) {
+        foreach ($to as $number) {
             $recipients[] = NumberHelper::fixPhoneNumber($number, $this->options['default_intl_prefix']);
         }
 
         $text = $sms->getText();
 
-        if(empty($text)) {
+        if (empty($text)) {
             throw new \InvalidArgumentException('A SMS must contain text.');
         }
 
-        if(null !== $this->options['max_sms_part_count'] && ($partCount = self::getSMSPartCount($sms)) > $this->options['max_sms_part_count']) {
-            throw new \LengthException(sprintf('The SMS part count necessary to send the SMS (\d parts) exceeds the defined maximum value of \d parts.', $partCount, $this->options['max_sms_part_count']));
+        if (null !== $this->options['max_sms_part_count'] && ($partCount = self::getSmsPartCount(
+                $sms
+            )) > $this->options['max_sms_part_count']
+        ) {
+            throw new \LengthException(sprintf(
+                'The SMS part count necessary to send the SMS (\d parts) exceeds the defined maximum value of \d parts.',
+                $partCount,
+                $this->options['max_sms_part_count']
+            ));
         }
 
-        $dataArray = array(
-            'username'  => urlencode($this->options['username']),
-            'password'  => urlencode($this->options['password']),
-            'type'      => 'text',
-            'to'        => implode(',', $recipients),
-            'content'   => urlencode($text)
+        $query = array(
+            'username' => urlencode($this->options['username']),
+            'password' => urlencode($this->options['password']),
+            'type'     => 'text',
+            'to'       => implode(',', $recipients),
+            'content'  => urlencode($text)
         );
 
-        foreach(array('iplock', 'numlock') as $key) {
-            if(null !== $this->options[$key]) {
-                $dataArray[$key] = $this->options[$key];
+        foreach (array('iplock', 'numlock', 'from') as $key) {
+            if (null !== $this->options[$key]) {
+                $query[$key] = $this->options[$key];
             }
         }
 
-        $from = trim($from);
-        if(is_numeric($from)) {
-            $from = NumberHelper::fixPhoneNumber($from, $this->options['default_intl_prefix']);
-        } elseif(preg_match('/[a-zA-Z]/', $from)) {
-            $from = substr($from, 0, 30);
-        } else {
-            throw new \InvalidArgumentException("'You must specify a valid 'from' value in order to send a SMS.");
+        if (null !== $from) {
+            $query['from'] = $this->checkOption('from', $from);
         }
 
-        $dataArray['from'] = $from;
-
-        if(null !== $time) {
-            $dataArray['time'] = $time->format('YmdHis');
+        if (null !== $time) {
+            $query['time'] = $time->format('YmdHis');
         }
 
-        if($this->options['debug_test']) {
-            $dataArray['test'] = '1';
+        if ($this->options['debug'] && $this->options['debug_test']) {
+            $query['test'] = '1';
         }
 
-        $messageId = '';
-        if($this->options['tracking']) {
+        $messageId = null;
+        if ($this->options['tracking']) {
             $date = new \DateTime();
-            $dataArray['requestid'] = $messageId = $date->format('Ymd-His-').substr(sha1(uniqid(implode('', $dataArray).$date->format('r'), true)), 3, 14);
+
+            $query['requestid'] = $messageId = $date->format('Ymd-His-') . substr(
+                    sha1(uniqid(implode('', $query) . $date->format('r'), true)),
+                    3,
+                    14
+                );
         }
 
-        $data = '';
-        $first = true;
-        foreach($dataArray as $key => $value) {
-            if(!$first) {
-                $data .= '&';
-            }
+        $opts = array(
+            'http' => array(
+                'method'  => 'POST',
+                'header'  => 'Content-type: application/x-www-form-urlencoded',
+                'content' => http_build_query($query),
+            )
+        );
 
-            $first = false;
-            $data .= $key.'='.$value;
-        }
-
-        $opts = array('http' => array(
-            'method'  => 'POST',
-            'header'  => 'Content-type: application/x-www-form-urlencoded',
-            'content' => $data,
-        ));
-
-        $response = null;
+        $response  = null;
         $isFailure = false;
 
-        // ToDo: Use curl instead?
         $context = stream_context_create($opts);
-        $fp = @fopen($this->options['gateway_uri'], 'rb', false, $context);
-        if($fp) {
+        $fp      = fopen($this->options['gateway_uri'], 'rb', false, $context);
+        if ($fp) {
             $response = new Response(@stream_get_contents($fp));
-            @fclose($fp);
+            fclose($fp);
         } else {
-            if(null !== $this->logger) {
-                $this->logger->warn(sprintf('Failed to connect to the FitSMS gateway server at "%s".', $this->options['gateway_uri']));
+            if (null !== $this->logger) {
+                $this->logger->warning(
+                    sprintf('Failed to connect to the FitSMS gateway server at "%s".', $this->options['gateway_uri'])
+                );
             }
 
             $isFailure = true;
         }
 
-        if(null !== $response) {
-            if($response->isFailure()) {
-                if(null !== $this->logger) {
-                    $this->logger->err(sprintf('Failed to send SMS\s. %s)', null !== $messageId ? ', message ID: '.$messageId : '', $response->getMessage()));
+        if (null !== $response) {
+            if ($response->isFailure()) {
+                if (null !== $this->logger) {
+                    $this->logger->error(
+                        sprintf(
+                            'Failed to send SMS\s. %s)',
+                            null !== $messageId ? ', message ID: ' . $messageId : '',
+                            $response->getMessage()
+                        )
+                    );
                 }
 
                 $isFailure = true;
             }
 
-            if(null !== $this->logger) {
-                $this->logger->info(sprintf('SMS has been sent successfully%s%s. (%s)', $response->isTest() ? ' in test mode' : '', null !== $messageId ? ', message ID: '.$messageId : '', $response->getMessage()));
+            if (null !== $this->logger) {
+                $this->logger->info(
+                    sprintf(
+                        'SMS has been sent successfully%s%s. (%s)',
+                        $response->isTest() ? ' in test mode' : '',
+                        null !== $messageId ? ', message ID: ' . $messageId : '',
+                        $response->getMessage()
+                    )
+                );
             }
         }
 
-        if($isFailure) {
+        if ($isFailure) {
             $this->failureCount++;
+
             return false;
         }
 
         $this->successCount++;
+
         return true;
     }
 
-    public function getSMSSuccessCount()
+    /**
+     * Determine in how many parts a sms needs to be split
+     *
+     * @param SMS $sms
+     *
+     * @return float
+     */
+    static public function getSmsPartCount(Sms $sms)
+    {
+        $text = $sms->getText();
+        $len  = strlen($text);
+
+        return ceil($len / ($len > 160 ? 153 : 160));
+    }
+
+    /**
+     * How many SMS were send successfully?
+     *
+     * @return int
+     */
+    public function getSmsSuccessCount()
     {
         return $this->successCount;
     }
 
-    public function getSMSFailureCount()
+    /**
+     * How many SMS were not sent because of an error?
+     *
+     * @return int
+     */
+    public function getSmsFailureCount()
     {
         return $this->failureCount;
     }
-
-    private function checkOption($key, $value)
-    {
-        switch($key) {
-            case 'numlock':
-            case 'iplock':
-                return !empty($value) ? '1' : '0';
-
-            case 'max_sms_part_count':
-                return max(1, min((int) $value, 6));
-        }
-
-        return $value;
-    }
-
-    static public function getSMSPartCount(SMS $sms)
-    {
-        $text = $sms->getText();
-        $len = strlen($text);
-
-        return ceil($len/($len > 160 ? 153 : 160));
-    }
 }
-

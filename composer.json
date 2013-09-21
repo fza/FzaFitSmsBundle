@@ -1,26 +1,28 @@
 {
-    "name": "fza/fitsms-bundle",
-    "type": "symfony-bundle",
-    "description": "Provides FitSMS.de SMS gateway service.",
-    "keywords": ["FitSMS", "SMS", "messaging"],
-    "homepage": "https://github.com/fza/FitSmsBundle",
-    "license": "MIT",
-    "authors": [
-        {
-            "name": "Felix Zandanel",
-            "email": "fz@onwebworx.net"
-        }
-    ],
-    "require": {
-        "symfony/framework-bundle": "2.1.*"
-    },
-    "require-dev": {
-        "symfony/dependency-injection": ">=2.1.0,<2.3-dev",
-        "symfony/config": ">=2.1.0,<2.3-dev",
-        "symfony/yaml": ">=2.1.0,<2.3-dev"
-    },
-    "autoload": {
-        "psr-0": { "Fza\\FitSmsBundle": "" }
-    },
-    "target-dir": "Fza/FitSmsBundle"
+  "name": "fza/fitsms-bundle",
+  "type": "symfony-bundle",
+  "description": "Provides FitSMS.de SMS gateway service",
+  "keywords": ["FitSMS", "SMS", "messaging"],
+  "homepage": "https://github.com/fza/FitSmsBundle",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Felix Zandanel",
+      "email": "felix@zandanel.me"
+    }
+  ],
+  "require": {
+    "symfony/symfony": "2.3.0"
+  },
+  "require-dev": {
+    "symfony/dependency-injection": "~2.3.0",
+    "symfony/config": "~2.3.0",
+    "symfony/http-kernel": "~2.3.0"
+  },
+  "autoload": {
+    "psr-0": {
+      "Fza\\FitSmsBundle": ""
+    }
+  },
+  "target-dir": "Fza/FitSmsBundle"
 }

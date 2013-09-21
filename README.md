@@ -72,7 +72,7 @@ Notes:
 ## Usage
 
 ``` php
-use Fza\FitSmsBundle\SMS;
+use Fza\FitSmsBundle\Sms;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 class MyController extends Controller {
@@ -83,14 +83,14 @@ class MyController extends Controller {
         $recipient = '0049123456789';
         $message = this->renderView('MyBundle::sms.txt.twig');
 
-        $sms = new SMS($recipient, $message);
+        $sms = new Sms($recipient, $message);
 
         $from = '0049123456789';
         $timeToSend = new \DateTime( '2012-01-01 14:00:00' );
 
         try {
-            // $timeToSend parameter is optional
-            $smsSent = $this->get('fitsms.gateway')->sendSMS($sms, $from, $timeToSend);
+            // $timeToSend parameter is optional (send immediately)
+            $smsSent = $this->get('fitsms.gateway')->sendSms($sms, $from, $timeToSend);
 
             if (!$smsSent) {
                 // Handle gateway errors (insufficient credit etc.)
