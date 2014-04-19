@@ -49,7 +49,7 @@ public function registerBundles()
 Add the following lines to your config.yml:
 
 ``` yaml
-fza_fitsms:
+fza_fit_sms:
     default_intl_prefix:  49
     username: "123456"
     password: "password"
