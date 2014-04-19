@@ -3,7 +3,7 @@
 namespace Fza\FitSmsBundle\FitSms;
 
 use Fza\FitSmsBundle\Helper\NumberHelper;
-use Fza\FitSmsBundle\Sms;
+use Fza\FitSmsBundle\SmsMessage;
 use Psr\Log\LoggerInterface;
 
 class Gateway
@@ -11,8 +11,13 @@ class Gateway
     private $options;
     private $failureCount = 0;
     private $successCount = 0;
+    private $lastResponse;
     private $logger;
 
+    /**
+     * @param array           $options
+     * @param LoggerInterface $logger
+     */
     public function __construct(array $options = array(), LoggerInterface $logger = null)
     {
         $this->setOptions($options);
@@ -134,15 +139,15 @@ class Gateway
     /**
      * Main sending routine
      *
-     * @param SMS       $sms
-     * @param null      $from
-     * @param \DateTime $time
+     * @param SmsMessage $sms
+     * @param null       $from
+     * @param \DateTime  $time
      *
      * @return bool
      * @throws \InvalidArgumentException
      * @throws \LengthException
      */
-    public function sendSms(Sms $sms, $from = null, \DateTime $time = null)
+    public function sendMessage(SmsMessage $sms, $from = null, \DateTime $time = null)
     {
         $recipients = array();
         $to         = $sms->getRecipient();
@@ -158,6 +163,9 @@ class Gateway
         }
 
         $text = $sms->getText();
+
+        // FitSMS expects message text to be ISO-8859-1 encoded
+        $text = mb_convert_encoding($text, 'ISO-8859-1', mb_detect_encoding($text));
 
         if (empty($text)) {
             throw new \InvalidArgumentException('A SMS must contain text.');
@@ -238,6 +246,8 @@ class Gateway
         }
 
         if (null !== $response) {
+            $this->lastResponse = $reponse;
+
             if ($response->isFailure()) {
                 if (null !== $this->logger) {
                     $this->logger->error(
@@ -255,7 +265,7 @@ class Gateway
             if (null !== $this->logger) {
                 $this->logger->info(
                     sprintf(
-                        'SMS has been sent successfully%s%s. (%s)',
+                        'SMS sent successfully%s%s. (%s)',
                         $response->isTest() ? ' in test mode' : '',
                         null !== $messageId ? ', message ID: ' . $messageId : '',
                         $response->getMessage()
@@ -276,13 +286,23 @@ class Gateway
     }
 
     /**
+     * Get the last response object
+     *
+     * @return Response|null
+     */
+    public function getLastResponse()
+    {
+        return $this->lastReponse;
+    }
+
+    /**
      * Determine in how many parts a sms needs to be split
      *
-     * @param SMS $sms
+     * @param SmsMessage $sms
      *
      * @return float
      */
-    static public function getSmsPartCount(Sms $sms)
+    static public function getSmsPartCount(SmsMessage $sms)
     {
         $text = $sms->getText();
         $len  = strlen($text);

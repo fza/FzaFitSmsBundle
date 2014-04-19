@@ -18,7 +18,7 @@ Add the bundle in your composer.json:
 ```js
 {
     "require": {
-        "fza/fit-sms": "*"
+        "fza/fitsms-bundle": "*"
     }
 }
 ```
@@ -26,10 +26,10 @@ Add the bundle in your composer.json:
 Run composer and download the bundle:
 
 ``` bash
-$ php composer.phar update fza/fit-sms
+$ php composer.phar update
 ```
 
-Enable the bundle in the kernel:
+Enable the bundle in the AppKernel:
 
 ``` php
 <?php
@@ -43,12 +43,13 @@ public function registerBundles()
     );
 }
 ```
+
 ## Configuration
 
-Add the following lines in your config.yml:
+Add the following lines to your config.yml:
 
 ``` yaml
-fza_fit_sms:
+fza_fitsms:
     default_intl_prefix:  49
     username: "123456"
     password: "password"
@@ -64,15 +65,17 @@ fza_fit_sms:
 
 Notes:
 
-- `tracking` enables transmitting a unique request id alongside the sms and logging it. You may view this id in the FitSMS control panel.
-- `debug_test` defaults to the kernel enviroment's debug value and sets the `debug` flag while sending a sms (will transmit it to the gateway, but not actually send it)
-- `max_sms_part_count` defaults to 6
-- Use `numlock` and `ìplock` to enable the limit of number of sms to be sent to a recipient / to be sent from your server IP within an hour. These are just boolean values, the numeric limits are to be configured in the FitSMS control panel.
+- `default_intl_prefix`: (int) sets the default country prefix if none was detected for a number
+- `username`, `password`: (string) self-explanatory
+- `tracking`: (bool) enables transmitting a unique request id alongside the sms and logging it. You may view this id in the FitSMS control panel as well.
+- `debug_test`: (bool) defaults to the kernel enviroment's debug value and sets the `debug` flag while sending a sms (will transmit it to the gateway, but not actually send it)
+- `max_sms_part_count`: (int) defaults to 6
+- `numlock`, `iplock`: (bool) Use these to enable the limit of sms to be sent to a recipient / to be sent from your server IP within an hour. These are just boolean values, the numeric limits are to be configured in the FitSMS control panel.
 
 ## Usage
 
 ``` php
-use Fza\FitSmsBundle\Sms;
+use Fza\FitSmsBundle\SmsMessage;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 class MyController extends Controller {
@@ -83,14 +86,14 @@ class MyController extends Controller {
         $recipient = '0049123456789';
         $message = this->renderView('MyBundle::sms.txt.twig');
 
-        $sms = new Sms($recipient, $message);
+        $sms = new SmsMessage($recipient, $message);
 
         $from = '0049123456789';
         $timeToSend = new \DateTime( '2012-01-01 14:00:00' );
 
         try {
-            // $timeToSend parameter is optional (send immediately)
-            $smsSent = $this->get('fitsms.gateway')->sendSms($sms, $from, $timeToSend);
+            // $timeToSend parameter is optional (will send immediately)
+            $smsSent = $this->get('fitsms.gateway')->sendMessage($sms, $from, $timeToSend);
 
             if (!$smsSent) {
                 // Handle gateway errors (insufficient credit etc.)

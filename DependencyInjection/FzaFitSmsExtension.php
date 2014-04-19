@@ -19,6 +19,7 @@ class FzaFitSmsExtension extends Extension
 
         $fitSmsGateway = $container->findDefinition('fitsms.gateway');
         $options       = $fitSmsGateway->getArgument(0);
+
         foreach (array(
             'debug_test',
             'gateway_uri',
@@ -33,6 +34,7 @@ class FzaFitSmsExtension extends Extension
         ) as $key) {
             $options[$key] = $config[$key];
         }
+
         $fitSmsGateway->replaceArgument(0, $options);
     }
 }

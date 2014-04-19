@@ -5,11 +5,12 @@ namespace Fza\FitSmsBundle\FitSms;
 class Response
 {
     private $isFailure;
-
     private $isTest;
-
     private $message;
 
+    /**
+     * @param string $responseText
+     */
     public function __construct($responseText)
     {
         $responseText = trim($responseText);

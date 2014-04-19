@@ -2,11 +2,15 @@
 
 namespace Fza\FitSmsBundle;
 
-class Sms
+class SmsMessage
 {
     private $recipient;
     private $text;
 
+    /**
+     * @param array|string $recipient
+     * @param string       $text
+     */
     public function __construct($recipient, $text)
     {
         $this->setRecipient($recipient);
@@ -16,7 +20,7 @@ class Sms
     /**
      * Get the recipient(s)
      *
-     * @return mixed
+     * @return array|string
      */
     public function getRecipient()
     {
@@ -26,7 +30,7 @@ class Sms
     /**
      * Set the recipient(s)
      *
-     * @param $recipient
+     * @param array|string $recipient
      */
     public function setRecipient($recipient)
     {
@@ -36,7 +40,7 @@ class Sms
     /**
      * Get the content
      *
-     * @return mixed
+     * @return string
      */
     public function getText()
     {
@@ -46,19 +50,10 @@ class Sms
     /**
      * Set the content
      *
-     * @param $text
+     * @param string $text
      */
     public function setText($text)
     {
-        $text = trim($text);
-
-        if (empty($text)) {
-            $text = '';
-
-            return;
-        }
-
-        // FitSMS expects message text to be ISO-8859-1 encoded
-        $this->text = mb_convert_encoding($text, 'ISO-8859-1', mb_detect_encoding($text));
+        $this->text = trim($text);
     }
 }

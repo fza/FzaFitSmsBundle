@@ -7,8 +7,8 @@ class NumberHelper
     /**
      * Inspect a phone number, mangle it or throw an exception if it has substantial errors
      *
-     * @param     $number
-     * @param int $defaultIntlPrefix
+     * @param string $number
+     * @param int    $defaultIntlPrefix
      *
      * @return mixed|string
      * @throws \InvalidArgumentException
@@ -31,11 +31,11 @@ class NumberHelper
 
         if ($hasPrefix && !preg_match('/^(\+|00)[123456789]{3}/', $number)) {
             throw new \InvalidArgumentException(sprintf(
-                'The receiver number does not follow international phone standards. (\s)',
+                'The receiver number does not follow international phone numbering standards. (\s)',
                 $number
             ));
         } else if (!$hasPrefix) {
-            $number = '00' . $defaultIntlPrefix . preg_replace('/^0*/', '', $number);
+            $number = '00' . $defaultIntlPrefix . ltrim($number, '0');
         }
 
         return $number;
